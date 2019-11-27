@@ -13,13 +13,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 suppressMessages(library(data.table))
 suppressMessages(library(broom))
+suppressMessages(library(ggplot2))
 suppressMessages(library(purrr))
 suppressMessages(library(caret))
 suppressMessages(library(magrittr))
 suppressMessages(library(MLmetrics))
 
 # Valamiért nem engedi az adatot pusholni a git
-data <- fread("C:/Users/Ildiko/OneDrive/Projekt/LeaugeDataMege.csv")
+data <- fread("LeaugeDataMege.csv")
 ```
 
 
@@ -31,6 +32,18 @@ formula1<-as.formula(totalDamageDealt~goldEarned+I(goldEarned^2))
 formula2<-as.formula(totalDamageDealt~goldEarned+I(goldEarned^2)+assists + kills)
 formula3<-as.formula(totalDamageDealt~goldEarned+goldEarned+I(goldEarned^2) + Mast)
 formula4<-as.formula(totalDamageDealt~goldEarned + Mast+ kills + assists)
+```
+
+### Quick plots
+
+```{r}
+ggplot(data, aes(x = goldEarned, y = totalDamageDealt)) + geom_line() + theme_minimal()
+
+ggplot(data, aes(x = goldEarned, y = Mast)) + geom_line() + theme_minimal()
+
+ggplot(data, aes(x = goldEarned, y = kills)) + geom_line() + theme_minimal()
+
+# Valamiféle kapcsolatot láthatunk a változók között
 ```
 
 
