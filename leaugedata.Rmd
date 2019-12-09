@@ -1,0 +1,104 @@
+---
+title: "Riot API"
+author: "Balint Szutor, Tam?s J?szai"
+date: '2019 november 19 '
+output: html_document
+---
+
+# Azt fogom megvizsgalni a kovetkezokben, hogy a Leauge of Legends nevu jatekban a jatekosok "Mastery pointjat" alkalmazva, prediktalni lehet-e, hogy gyozni fog a csapatuk
+
+https://leagueoflegends.fandom.com/wiki/Champion_Mastery
+
+Mivel nincs adatom, ezert eloszor egy Python koddal kenytelen leszek beszerezni azt, a Riot API-on keresztul, majd azzal machinalni
+```{r}
+# Python code
+
+# import cassiopeia as cass
+# import pandas as pd
+# import time
+# 
+# cass.set_riot_api_key("RGAPI-bdb52a65-d181-48cb-a0ed-396490e69d94")
+# players = ["StarkHUN"] #Me and the boys
+# 
+# ids = []
+# champions = []
+# masteries = []
+# sides = []
+# sides = []
+# win = []
+# stats = []
+# summonername = []
+# date = []
+# 
+# for name in players:
+#     #Create data frame to populate with matches
+#     playerdata = cass.get_summoner(name = name, region = "EUNE")
+#     match = playerdata.match_history
+# 
+#     for matchnum in range(len(match)):
+#         print(matchnum, len(match))
+#         time.sleep(0.1)
+#         for sumnum in range(10):
+#             if "fives" in match[matchnum].queue.name and "coop" not in match[matchnum].queue.name:
+#                 try:
+#                     date.append(match[matchnum].creation)
+#                     ids.append(match[matchnum].id)
+#                     champions.append(match[matchnum].participants[sumnum].champion.name)
+#                     summonername.append(match[matchnum].participants[sumnum].summoner.name)
+#                     a = match[matchnum].participants[sumnum].summoner.champion_masteries.filter(lambda cm: cm.champion.name == champions[matchnum])
+#                     if len(a) > 0:
+#                             masteries.append(a[0].points)
+#                     else:
+#                             masteries.append("NA")
+#                     sides.append(match[matchnum].participants[sumnum].side)
+#                     win.append(match[matchnum].red_team.win)
+#                     stats.append(match[matchnum].participants[sumnum].stats.to_dict().values())
+#                 except:
+#                     mylists = [date, ids, champions, masteries, sides, win, stats]
+#                     for currlist in mylists:
+#                         if len(currlist) < len(ids):
+#                             currlist.append("NA")
+# 
+#     lists_together = list(zip(ids, summonername, champions, masteries, sides, win, stats))
+#     df = pd.DataFrame(lists_together)
+# 
+#     df.to_csv("LeaugeData" + name + ".csv")
+# 
+#     ids = []
+#     champions = []
+#     masteries = []
+#     sides = []
+#     win = []
+#     stats = []
+#     summonername = []
+#     date = []
+```
+
+
+
+```{r}
+library(data.table)
+library(dplyr)
+
+data = fread('data/LeaugeData1.csv')
+names(data) <- c("Num", "IDs", "Champ", "Mast", "Sides", "Redw")
+data[, win:= ifelse((Sides == "Side.blue" & Redw == TRUE) | (Sides == "Side.red" & Redw == FALSE), 0, 1)]
+
+
+wins <- data[, .(winner = sum(win)), by = list(IDs, Sides)]
+masteries <- data[, .(Mastery = sum(Mast)), by = list(IDs, Sides)]
+
+masteries$wins <- gsub(5, 1, wins$winner)
+
+
+model <- glm(as.factor(wins) ~ Mastery, data = masteries[Sides == "Side.red"],
+    family = "binomial")
+
+pred_prob <- predict(model, type = "response")
+pred_response <- rep("No", length(pred_prob))
+pred_response[pred_prob > .5] <- "Yes"
+
+table(pred_response, masteries[Sides == "Side.red"]$wins)
+
+# Ugy fest, hogy a hosok ismerete nem jelent feltetlen akkora elonyt, mint azt elsore gondolnank
+```
