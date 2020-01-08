@@ -1,0 +1,306 @@
+---
+title: "Vegso porjekt"
+author: "Balint Szutor es Jaszai Tamas"
+date: '2020 januar 7 '
+output: html_document
+---
+
+# A mi vegso projektunkben megprobaljuk megjosolni Leauge of Legends jatekok kimenetet
+
+Hipotezis: Mivel a LOL egy digitalis jatek ezert konnyebb lehet real-time adatokat szerezni a meccsekrol, ezert egy machine learing programmal talan kepesek lehetunk elverni az odds-okat amit fogado oldalak adnak nekunk es igy penzt tudunk ezzel keresni.
+
+
+# A projektunk letrejotte a kovetkezo utat kovette
+
+##   Tema valasztas
+
+##   Adat kereses -- 
+Erre lejjebb beillesztettuk a hasznalt Python scriptet
+
+##   Adat felfedezes -- 
+Probaltunk abrakon keresztul osszefuggeseket keresni, illetve egyszeru statisztikakkal, azonban ezeknek nagyresze nem volt nagyon hasznos ezert nem is kerultek be ide, azonban nehanyat bent hagytunk
+
+##   Model kereses -- 
+Ez talan tobb idot vett el a kelletenel, szerettuk volna clusterezest es predikcios modszereket keverni ezert kerestunk PCR (Principal component regression) modelleket, azonban onnan tovabb kerestunk es talaltunk egy binomialis modellekre is illesztheto modszert, ezt a kovetkezo linken talaltuk
+###   https://www.sciencedirect.com/science/article/pii/S0167947318300562
+
+##   Adat tisztitas -- 
+Bar eleg terjedelmes adatot talaltunk vegul, meg akkor ha sok az ismetlodo informacio es hasonlok, az adat nem volt teljesen tiszta. Nehany dolgot meg excelben tisztitottunk, azonban a nagy resze mar R-ben tortent es a kodot is beillesztettuk (Excelben kitoroltunk folosleges sorokat)
+
+##   Modell illesztes -- 
+Kiprobaltunk tobb modellt is, ebbol azonban termeszetesen a PCR modellt szerettuk voln a leginkabb hasznalni, a sikerunkrol kesobb lesz szo
+
+
+# Adat kereses
+
+Mivel mashogy nem tudtam adatot talalni erre, ezert a Riot Games API-at hasznalva kertem le az adatokat. Ez sajnos mivel elegge korlatozva volt a mennyiseg amit kerhettem azzal jart, hogy ket esten at futtatva is csak par ezer jatekrol sikerult adatot szereznem.
+De maga az adat cserebe kiterjed rengeteg dologra, amivel probalkozni tudok.
+```{r}
+
+# Nem tudtuk kiexportalni HTML-be amig nem raktuk at R kod blokka, elnezest a gepemen sajnos eleg sok furcsa R Studio hiba szembejon.
+
+# import cassiopeia as cass
+# import pandas as pd
+# import time
+# 
+# cass.set_riot_api_key("")
+# players = [""]
+# 
+# ids = []
+# champions = []
+# masteries = []
+# sides = []
+# sides = []
+# win = []
+# stats = []
+# summonername = []
+# date = []
+# 
+# for name in players:
+#     #Create data frame to populate with matches
+#     playerdata = cass.get_summoner(name = name, region = "EUNE")
+#     match = playerdata.match_history
+# 
+#     for matchnum in range(len(match)):
+#         print(matchnum, len(match))
+#         time.sleep(0.1)
+#         for sumnum in range(10):
+#             if "fives" in match[matchnum].queue.name and "coop" not in match[matchnum].queue.name:
+#                 try:
+#                     date.append(match[matchnum].creation)
+#                     ids.append(match[matchnum].id)
+#                     champions.append(match[matchnum].participants[sumnum].champion.name)
+#                     summonername.append(match[matchnum].participants[sumnum].summoner.name)
+#                     a = match[matchnum].participants[sumnum].summoner.champion_masteries.filter(lambda cm: cm.champion.name == champions[matchnum])
+#                     if len(a) > 0:
+#                             masteries.append(a[0].points)
+#                     else:
+#                             masteries.append("NA")
+#                     sides.append(match[matchnum].participants[sumnum].side)
+#                     win.append(match[matchnum].red_team.win)
+#                     stats.append(match[matchnum].participants[sumnum].stats.to_dict().values())
+#                 except:
+#                     mylists = [date, ids, champions, masteries, sides, win, stats]
+#                     for currlist in mylists:
+#                         if len(currlist) < len(ids):
+#                             currlist.append("NA")
+# 
+#     lists_together = list(zip(ids, summonername, champions, masteries, sides, win, stats))
+#     df = pd.DataFrame(lists_together)
+# 
+#     df.to_csv("LeaugeData" + name + ".csv")
+# 
+#     ids = []
+#     champions = []
+#     masteries = []
+#     sides = []
+#     win = []
+#     stats = []
+#     summonername = []
+#     date = []
+```
+
+# Packagek
+```{r}
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(magrittr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyverse))
+```
+
+
+# Adat tisztitas
+```{r}
+data <- fread("data/LeaugeDataMege_clean.csv", dec = ",")
+full_data <- data
+
+# Lehetseges hogy talaltunk meg olyan meccseket ahol hianyzik adatunk, ezeket eldobjuk
+a <- data[, .N, IDs]
+correct_ids <- a$IDs[a$N == 10]
+data <- data[data[, IDs %in% correct_ids]]
+
+# Minket a ket csapat kozotti kulonbseg erdekel, azzal tudunk igaz?n jol becsulni
+data_blue <- data[Sides == "Side.blue"]
+data_red <- data[Sides == "Side.red"]
+
+# Most elvalasztom a nem numerikus oszlopokat, azokkal nem fogunk tudni jol dolgozni, illetve kidoblaom az olyan oszlopokat amikben nincsen semmi adat, sot olyanok is vannak az adataink kozott mint a SightWards, amit kivettek a jatekbol mar kozel 4-5 eve, illetve unrealKills, ami soha benne sem volt
+non_numeric_columns <- c("SummonerName", "Champion", "Sides", "Redw", "item0", "item1", "item2", "item3", "item4", "item5", "item6", "playerScore1", "playerScore2", "playerScore3", "playerScore4", "playerScore5", "playerScore6", "playerScore7", "playerScore8", "playerScore9", "combatPlayerScore", "totalPlayerScore", "firstBloodAssist", "objectivePlayerScore", "totalScoreRank", "playerScore0", "sightWardsBoughtInGame", "unrealKills", "participantId")
+data_blue[, c(non_numeric_columns):=NULL]
+data_red[, c(non_numeric_columns):=NULL]
+
+data_blue_sum <- aggregate(. ~IDs, data_blue, FUN = "sum") %>% data.table()
+data_red_sum <- aggregate(. ~IDs, data_red, FUN = "sum") %>% data.table()
+
+# Gyozelem vektor
+wins <- data[Sides == "Side.red", .(winner = sum(win)), by = list(IDs, Sides)]
+used_ids <- data.table(cbind(wins$winner/5, data_red_sum$IDs))
+names(used_ids) <- c("win", "IDs")
+
+data_red_sum[,c("IDs", "win"):=NULL]
+data_blue_sum[,c("IDs", "win"):=NULL]
+
+# Ket csapat kozotti kulonbseggel fogunk prediktalni, hiszen a nominalis ertek nem feltetlen mond sokat. Az erosen fugghet a jatekidotol, amire nem korrigalunk.
+diff <- data.table(as.matrix(data_red_sum) - as.matrix(data_blue_sum))
+
+data <- cbind(used_ids, diff)
+```
+
+# Adat felfedezes
+```{r}
+# Olyan abrakat keresunk ahol osszefugges lehet a ket valtozo kozott, de nem reszhalmazai egymasnak
+
+# Ilyen lehet peldaul hogy mennyi aranyat koltottek, es ezzel mennyit tudtak az ellenfeleikre sebezni
+ggplot(data, aes(x = totalDamageDealt, y = goldSpent)) + geom_point()
+# Erdekes lehet, hgoy vajon a gyoztes csapat hatekonyabb-e az arany hasznalatban
+ggplot(full_data, aes(x = totalDamageDealt, y = goldSpent)) + geom_point() + facet_grid(rows = full_data$win)
+# Ranezesre nincs oriasi kulonbseg, de a gyoztes csapat ranezesre kevesbe szorodik
+
+# Erdekes lehet a win rateje a piros csapatnak a mintankban, ha nem 50% kozeli akkor lehet torzitott a mintank 
+sum(used_ids$win) / length(used_ids$win)
+# Nagyjabol stimmel, nincsen oriasi elteres
+
+corr_mat <- cor(data[,-c(2)])
+```
+
+# Egyszerubb modell
+```{r}
+model <- glm(as.factor(win) ~ ., data = data[,-c(2)], family = "binomial")
+
+pred_prob <- predict(model, type = "response")
+pred_response <- rep("No", length(pred_prob))
+pred_response[pred_prob > .5] <- "Yes"
+
+table(pred_response, data$win)
+
+# Osszesegeben nem teljesit rosszul a modell, tobbszor talalta el a helyes valszt, mint nem, azonban neki lehet banto ha sok folsoleges valtozot benne hagyunk
+# Az esetek 58%-ban jol megtudtuk josolni az eredmenyt
+
+model <- glm(as.factor(win) ~ largestCriticalStrike + totalDamageDealtToChampions + trueDamageTaken, data = data[,-c(2)], family = "binomial")
+
+pred_prob <- predict(model, type = "response")
+pred_response <- rep("No", length(pred_prob))
+pred_response[pred_prob > .5] <- "Yes"
+
+table(pred_response, data$win)
+# A korrelacios matrixbol kiindulva vett valtozokkal, azt kaptuk, hogy 53%-ban pontosat tudtunk mondani, ami mar tobb mint a kezdo 51% win rate volt
+
+# CV modell valasztassal
+# Training adat
+# train.control <- trainControl(method = "cv", number = 10)
+# model <- train(win ~., data = data, method = "glm",
+#                trControl = train.control)
+
+
+# # Sajnos egyszeruen nem vagyok kepes eletre kelteni a caret packaget, ezert nem tudtam ezt a reszt lelkiismeretesen befejezni, de meg terveztem nezni Cross validation-el is hogy a jo modellt valasszam.
+
+# print(model)
+```
+
+# Modell epites
+```{r}
+winvec <- as.numeric(data$win)
+depen <- data[, c("IDs", "win"):= NULL]
+depen_names <- names(depen)
+
+depen <- as.matrix(depen, rownames = FALSE)
+
+# KONYOK
+ks <- 1:10
+tot_within_ss <- sapply(ks, function(k) {
+  km_output <- kmeans(depen, k, nstart = 20)
+  km_output$tot.withinss
+})
+tot_within_ss
+
+plot(
+  x = ks,
+  y = tot_within_ss,
+  type = "b"
+)
+# A konyok alapjan 4 clustert PC-et hasznalok
+
+# Ez a function a "Compositional" packageben van benne, azonban nem a sima glm fuggvenyt hasznalja 
+# ezert nem tudtam rendesen hasznalni azonban atirva a source code-ot mar jo eredmenyt kapunk
+# https://github.com/cran/Compositional/blob/master/R/glm.pcr.R
+
+################################
+#### Principal components regression  for binary and poisson regression
+################################
+
+glm.pcr <- function(y, x, k = 1) {
+  ## y is either a binary variable 0, 1
+  ## x contains the independent variables
+  ## k shows the number of components to keep
+  p <- dim(x)[2]
+  eig <- prcomp(x, center = FALSE)
+  
+  values <- eig$sdev^2  ## eigenvalues
+  per <- cumsum( values / sum(values) )  ## cumulative proportion of eigenvalues
+  vec <- eig$rotation[, 1:k, drop = FALSE]  ## eigenvectors, or principal components
+  z <- x %*% vec  ## PCA scores
+  
+    z <- as.data.frame(z)
+    names(z) <- c("zPC1", "zPC2", "zPC3", "zPC4")
+    mod <- glm(as.factor(y) ~ ., data = z, family = binomial)
+    be <- mod$info[, 1]
+  
+  list(model = mod, per = per[k], test = t, pca = eig)
+}
+
+# Training and validation data
+samp <- sample(nrow(depen), nrow(depen)*0.75)
+depen.train <- depen[samp,]
+winvec.train <- winvec[samp]
+
+depen.valid <- depen[-samp,]
+winvec.valid <- winvec[-samp]
+
+model_pcr <- glm.pcr(winvec.train, depen.train, k = 4)
+glm_model <- model_pcr$model
+
+test <- tbl_df(predict(model_pcr$pca, newdata = depen.valid)) %>% select(PC1:PC5)
+
+names(test) <- c("zPC1", "zPC2", "zPC3", "zPC4")
+pred_prob <- predict(glm_model, newdata = test, type = "response")
+
+truepos <- c()
+falsepos <- c()
+F1_vec <- c()
+# F1 score alapjan valaszthatunk legjobb erteket
+ks <- seq(from = 0.44, to = 0.55, by = 0.01)
+for (k in ks) {
+  pred_response <- rep(0, length(pred_prob))
+  pred_response[pred_prob > k] <- 1
+  result_table <- table(pred_response, winvec.valid)
+  
+  precision <- result_table[2,2] / (result_table[2,2] + result_table[2,1])
+  recall <- result_table[2,2] / (result_table[2,2] + result_table[1,2])
+  F1 <- 2*((precision*recall)/(precision+recall))
+  
+  # Erdekelt hogy az F1 szam alapjan melyik kritikus erteket lenne erdemes valasztanom, de sajnos nem segitett ebben az esetben
+  F1_vec <- append(F1_vec, F1)
+  truepos <- append(truepos, (result_table[2,2])/(result_table[2,2]+result_table[1,2]))
+  falsepos <- append(falsepos, (result_table[2,1])/(result_table[2,2]+result_table[1,1]))
+  print(k)
+  print((result_table[2,1])/(result_table[2,2]+result_table[1,1]))
+}
+
+plot(truepos,falsepos)
+# A szinte egyenes vonalbol arra kovetkeztetek, hogy annyira pontosan tudunk igy elorejelezni mintha szinte random mintank lenne
+
+# A ROC gorbe alapjan .52 nem vagyunk a legkozelebb a kivant eredmenyhez
+pred_response <- rep(0, length(pred_prob))
+pred_response[pred_prob > .50] <- 1
+table(pred_response, winvec.valid)
+```
+
+# Tanulsag
+
+## Sajnos nem lett attoro eredmenyunk, de sok tanulsaggal jart
+
+Szamunkra meglepo, hogy nem mukodott a PCR. Azert hasznaltuk eredetileg, mert annak ellenere hogy sokfele adatunk volt abbol sok igazabol egymasnak szinte reszhalmaza volt (total damage dealt es mondjuk magic damage dealt), ezert vekony jegen tancoltunk kolleraciok miatt.
+
+Valoszinuleg erdemesebb lett volna az adatokat jobban megkopasztani es annak jobban utana jarni, hogy mi hogyan hat mire. Mindenesetre az elso glm modellunk meglepoen jol teljesitett, jobban is mint a bonyolult PCR. Remeltuk, hogy esetleg valami szebb kepet kapunk es meg legvadabb almainkban azt is, hogy valami olyasmi eredmenyre juthatunk, mint peldaul ebben a videoban: https://www.youtube.com/watch?v=4VAkrUNLKSo
+
+Mindenesetre elveztuk, es volt legalabb lehetosegunk nem csak R-ben, de Pythonban is gyakorolni egy kicsit. Ha nem is fogunk most meggazdagoni a Lol jatek fogadasokbol egyenlore.
