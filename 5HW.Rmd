@@ -37,7 +37,7 @@ test <- data[-samp,]
 control <- trainControl(method = "repeatedCV", number = 10, repeats = 3)
 
 # Model
-model <- train(goldEarned ~ totalDamageDealt + kills + neutralMinionsKilled, data = train, method = "lm", trControl = train.control)
+model <- train(goldEarned ~ totalDamageDealt + kills + neutralMinionsKilled, data = train, method = "lm", trControl = control)
 
 print(model)
 
@@ -51,12 +51,12 @@ RMSE(predictions, test$goldEarned)
 corr <- cor(data[,-c(1:6)])
 
 ordered_corr <- as.data.table(as.table(corr))
-ordered_corr <- ordered_corr[order(N)]
+ordered_corr <- ordered_corr[order(-rank(N))]
 
-head(big_correlations[V1 == "goldEarned"], n = 20)
+head(ordered_corr[V1 == "goldEarned"], n = 20)
 
 # Model
-model <- train(goldEarned ~ deaths + totalDamageTaken + physicalDamageTaken, data = train, method = "lm", trControl = train.control)
+model <- train(goldEarned ~ goldSpent + totalDamageDealt + kills, data = train, method = "lm", trControl = control)
 
 print(model)
 
@@ -65,4 +65,4 @@ predictions <- predict(model, newdata = test)
 RMSE(predictions, test$goldEarned)
 ```
 
-Úgy fest, hogy az eslő modell jobban működött és alacsonyabb RMSE-t kaptunk erre, ezért azt a modellt választjuk!
+Úgy fest, hogy a második modell jobban teljesített sokkal, ezért inkább ezt használjuk.
