@@ -197,6 +197,12 @@ ggplot(data, aes(x = trueDamageDealt, y = trueDamageTaken)) +
   ylab("Igaz sebzés elszenvedve") +
   ggtitle("Igaz sebzés látványosan a 0 körül szórodik")
 
+# Ez az ábra különösen érdekes lehet és sokat elárul a játékról. Látszódik, hogy egy ideig ahogy nő az assistok száma (azaz, hogy hány gyilkosságban segítettünk egy csapattársunknak), úgy nő a sebzés is, azonban ez egy idő után megordul és csökkeni kezd. Ennek oka az lehet, hogy igazán sok assistot support karakterek szereznek, akik viszont nem sebeznek.
+ggplot(full_data, aes(x = assists, y = totalDamageDealt)) + 
+  geom_point() + 
+  xlab("Assistok") +
+  ylab("Sebzés") +
+  ggtitle("Sebzés és aszisztok kapcsolata")
 
 # Mennyi aranyat költöttek, és ezzel mennyi sebzést tudtak okozni
 ggplot(data, aes(x = totalDamageDealt, y = goldSpent)) + 
@@ -229,6 +235,12 @@ head(big_correlations, n = 20)
 head(big_correlations[V1 == "win"], n = 20)
 # Bár az új eredményünk egy jelentős része meglehetősen egyértelmű, számunkra a death-goldEarned változó ennyire erős korrelációja mégis meglepő. Rengeteg módja van az aranyszerzésnek a játékban és az, hogy a halálok ennyire együtt mozognak vele minket meglepett: talán azért lehet így és azért nem látjuk ugyanúgy a kills változót, mert miután az ember meghal, amíg újra fel nem éled nem tud aranyat szerezni, azonban az ellenfélnek aranyat adott a halálával, és mivel mi a csapatok közötti különbséget vizsgáljuk ezért ez erősebben hat.
 ```
+
+Az ábrákat elnézve, az adataink között van kapcsolat, néhány esetben (death-goldEarned) talán túlságosan nagy is, ezért a következőkben ezt észben tartva keresünk modelleket. Amiket észrevettünk, hogy a következőkre kell midenképpen figyeljünk:
+- Kolleráció
+- Adat fontossága
+
+Ezeknek a problémáknak a megoldásáról és megjelenéséről a modelleknél írunk majd bővebben.
 
 # Challange modell
 ```{r}
@@ -339,10 +351,10 @@ plot(
   y = tot_within_ss,
   type = "b"
 )
-# A konyok alapjan 4 clustert PC-et hasznalunk.
+# A könyök alapján 4 clustert PC-et használunk.
 
-# Ez a function a "Compositional" packageben van benne, azonban nem a sima glm fuggvenyt hasznalja 
-# ezert nem tudtam rendesen hasznalni azonban atirva a source code-ot mar jo eredmenyt kapunk
+# Ez a function a "Compositional" packageben van benne, azonban nem a sima glm függvényt használja 
+# ezért nem tudtuk rendesen használni, azonban a source code-ot átírva már jó eredményt kapunk
 # https://github.com/cran/Compositional/blob/master/R/glm.pcr.R
 
 ################################
@@ -403,11 +415,10 @@ for (k in ks) {
   # Eredmények:
   print(paste("Kritikus érték", k))
   print(precision(result_table))
-  print((result_table[2,1])/(result_table[2,2]+result_table[1,1]))
 }
 
 plot(falsepos, truepos)
-# A szinte egyenes vonalbol arra kovetkeztetek, hogy annyira pontosan tudunk igy elorejelezni mintha szinte random mintank lenne
+# A szinte egyenes vonalbol arra következtetünk, hogy annyira pontosan tudunk így előrejelezni, mintha szinte random mintánk lenne
 
 # Mivel a precision alapján tervezünk választani, ezért a .5-es értéknél választjuk el a győzelmet
 pred_response <- rep(0, length(pred_prob))

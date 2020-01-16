@@ -12,93 +12,57 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 suppressMessages(library(data.table))
-suppressMessages(library(broom))
 suppressMessages(library(ggplot2))
-suppressMessages(library(purrr))
 suppressMessages(library(caret))
-suppressMessages(library(magrittr))
-suppressMessages(library(MLmetrics))
 
-# Valamiért nem engedi az adatot pusholni a git
-data <- fread("LeaugeDataMege.csv")
+data <- fread("data/LeaugeDataMege_clean.csv")
+
+non_numeric_columns <- c("SummonerName", "Champion", "Sides", "Redw", "item0", "item1", "item2", "item3", "item4", "item5", "item6", "playerScore1", "playerScore2", "playerScore3", "playerScore4", "playerScore5", "playerScore6", "playerScore7", "playerScore8", "playerScore9", "combatPlayerScore", "totalPlayerScore", "firstBloodAssist", "objectivePlayerScore", "totalScoreRank", "playerScore0", "sightWardsBoughtInGame", "unrealKills", "participantId", "perkSubStyle", "perkPrimaryStyle", "champLevel", "firstInhibitorAssist", "firstInhibitorKill", "firstBloodKill", "firstTowerAssist", "firstTowerKill", "quadraKills", "pentaKills")
+
+data[, c(non_numeric_columns):=NULL]
 ```
 
+Kettő modellt fogunk megvizsgálni. Az első az a modell, amiről mi azt gondoljuk, hogy a leginkább prediktálja a szerzett arany mennyiséget, a másodikban az első 3 leginkább korellált értéket fogjuk választani, aztán LVQ módszerrel próbáljuk meg.
 
+# Saját ötletünk szerint
 ```{r}
+set.seed(2020)
+samp <- sample(nrow(data), nrow(data)*0.85)
 
-# Megpróbáljuk a sebzést előrejelezni például az aranyuk, killjei és hasonlóik függvényében.
-  
-formula1<-as.formula(totalDamageDealt~goldEarned+I(goldEarned^2))
-formula2<-as.formula(totalDamageDealt~goldEarned+I(goldEarned^2)+assists + kills)
-formula3<-as.formula(totalDamageDealt~goldEarned+goldEarned+I(goldEarned^2) + Mast)
-formula4<-as.formula(totalDamageDealt~goldEarned + Mast+ kills + assists)
+# Létrehozunk egy training és egy teszt adathalmazt amit később használni tudunk
+train <- data[samp,]
+test <- data[-samp,]
+
+# Train control
+control <- trainControl(method = "repeatedCV", number = 10, repeats = 3)
+
+# Model
+model <- train(goldEarned ~ totalDamageDealt + kills + neutralMinionsKilled, data = train, method = "lm", trControl = train.control)
+
+print(model)
+
+predictions <- predict(model, newdata = test)
+
+RMSE(predictions, test$goldEarned)
 ```
 
-### Quick plots
-
+# Korrelációk szerint
 ```{r}
-ggplot(data, aes(x = goldEarned, y = totalDamageDealt)) + geom_line() + theme_minimal()
+corr <- cor(data[,-c(1:6)])
 
-ggplot(data, aes(x = goldEarned, y = Mast)) + geom_line() + theme_minimal()
+ordered_corr <- as.data.table(as.table(corr))
+ordered_corr <- ordered_corr[order(N)]
 
-ggplot(data, aes(x = goldEarned, y = kills)) + geom_line() + theme_minimal()
+head(big_correlations[V1 == "goldEarned"], n = 20)
 
-# Valamiféle kapcsolatot láthatunk a változók között
+# Model
+model <- train(goldEarned ~ deaths + totalDamageTaken + physicalDamageTaken, data = train, method = "lm", trControl = train.control)
+
+print(model)
+
+predictions <- predict(model, newdata = test)
+
+RMSE(predictions, test$goldEarned)
 ```
 
-
-### Train vs. test error
-```{r}
-
-# Az órai anyag alapján
-
-train_proportion<-0.7
-train_index<-sample(1:nrow(data),floor(nrow(data)*train_proportion))
-data_train<-data[train_index,]
-data_test<-data[-train_index,]
-model1<-lm(formula1,data = data_train)
-model2<-lm(formula2,data = data_train)
-model3<-lm(formula3,data = data_train)
-model4<-lm(formula4,data = data_train)
-data_train<-data_train[,Model1:=predict(model1,newdata = data_train)] %>% .[,Model2:=predict(model2,newdata = data_train)] %>% .[,Model3:=predict(model3,newdata = data_train)] %>% .[,Model4:=predict(model4,newdata=data_train)]
-mse_train1<-MSE(data_train[,totalDamageDealt],data_train[,Model1])
-mse_train2<-MSE(data_train[,totalDamageDealt],data_train[,Model2])
-mse_train3<-MSE(data_train[,totalDamageDealt],data_train[,Model3])
-mse_train4<-MSE(data_train[,totalDamageDealt],data_train[,Model4])
-rounded_mse_train<-round(c(mse_train1,mse_train2,mse_train3,mse_train4),digits = 2)
-data_test<-data_test[,Model1:=predict(model1,newdata = data_test)] %>% .[,Model2:=predict(model2,newdata = data_test)] %>% .[,Model3:=predict(model3,newdata = data_test)] %>% .[,Model4:=predict(model4,newdata=data_test)]
-mse_test1<-MSE(data_test[,totalDamageDealt],data_test[,Model1])
-mse_test2<-MSE(data_test[,totalDamageDealt],data_test[,Model2])
-mse_test3<-MSE(data_test[,totalDamageDealt],data_test[,Model3])
-mse_test4<-MSE(data_test[,totalDamageDealt],data_test[,Model4])
-rounded_mse_test<-round(c(mse_test1,mse_test2,mse_test3,mse_test4),digits = 2)
-cbind(c("model1","model2","model3","model4"),"train MSE"=rounded_mse_train,"test MSE"=rounded_mse_test)
-```
-
-
-### K-fold cross validation
-
-```{r}
-
-# Package függvényeit használva
-
-train_control<-trainControl(method="cv",number=5)
-set.seed(2)
-model1cv<-train(formula1,data=data,trControl=train_control, method="lm")
-model2cv<-train(formula2,data=data,trControl=train_control, method="lm")
-model3cv<-train(formula3,data=data,trControl=train_control, method="lm")
-model4cv<-train(formula4,data=data,trControl=train_control, method="lm")
-a<-model1cv$results$RMSE
-b<-model2cv$results$RMSE
-c<-model3cv$results$RMSE
-d<-model4cv$results$RMSE
-rounded_mse_cv<-round(c(a,b,c,d),digits = 2)
-cbind(c("model1","model2","model3","model4"),"CV MSE" = rounded_mse_cv)
-```
-
-
-```{r}
-cbind(c("model1","model2","model3","model4"),"train MSE"=rounded_mse_train,"test MSE"=rounded_mse_test,"CV MSE" = rounded_mse_cv)
-
-# Tehát a második modellt fogjuk használni.
-```
+Úgy fest, hogy az eslő modell jobban működött és alacsonyabb RMSE-t kaptunk erre, ezért azt a modellt választjuk!
