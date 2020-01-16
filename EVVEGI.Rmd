@@ -108,7 +108,7 @@ suppressPackageStartupMessages(library(magrittr))
 suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(tidyverse))
 
-set.seed(1997)
+set.seed(2020)
 ```
 
 
@@ -127,11 +127,7 @@ data_blue <- data[Sides == "Side.blue"]
 data_red <- data[Sides == "Side.red"]
 
 # Most elvalasztom a nem numerikus oszlopokat, azokkal nem fogunk tudni jol dolgozni, illetve kidoblaom az olyan oszlopokat amikben nincsen semmi adat, sot olyanok is vannak az adataink kozott mint a SightWards, amit kivettek a jatekbol mar kozel 4-5 eve, illetve unrealKills, ami soha benne sem volt
-non_numeric_columns <- c("SummonerName", "Champion", "Sides", "Redw", "item0", "item1", "item2", "item3", "item4", "item5", "item6", "playerScore1", "playerScore2", "playerScore3", "playerScore4", "playerScore5", "playerScore6", "playerScore7", "playerScore8", "playerScore9", "combatPlayerScore", "totalPlayerScore", "firstBloodAssist", "objectivePlayerScore", "totalScoreRank", "playerScore0", "sightWardsBoughtInGame", "unrealKills", "participantId", "perkSubStyle", "perkPrimaryStyle", "champLevel")
-
-factor_cols <- c("firstInhibitorAssist", "firstBloodKill", "firstTowerAssist", "firstTowerKill")
-
-data[, (factor_cols):= lapply(.SD, as.factor), .SDcols = factor_cols]
+non_numeric_columns <- c("SummonerName", "Champion", "Sides", "Redw", "item0", "item1", "item2", "item3", "item4", "item5", "item6", "playerScore1", "playerScore2", "playerScore3", "playerScore4", "playerScore5", "playerScore6", "playerScore7", "playerScore8", "playerScore9", "combatPlayerScore", "totalPlayerScore", "firstBloodAssist", "objectivePlayerScore", "totalScoreRank", "playerScore0", "sightWardsBoughtInGame", "unrealKills", "participantId", "perkSubStyle", "perkPrimaryStyle", "champLevel", "firstInhibitorAssist", "firstInhibitorKill", "firstBloodKill", "firstTowerAssist", "firstTowerKill", "quadraKills", "pentaKills")
 
 data_blue[, c(non_numeric_columns):=NULL]
 data_red[, c(non_numeric_columns):=NULL]
@@ -159,60 +155,77 @@ data <- cbind(used_ids, diff)
 # Olyan abrakat keresunk ahol osszefugges lehet a ket valtozo kozott, de nem reszhalmazai egymasnak
 
 ggplot(full_data, aes(x = goldEarned, y = totalDamageDealt)) + 
-  geom_point() + 
-  facet_grid(rows = full_data$win) +
+  geom_point() +
   xlab("Sebzés") +
   ylab("Csapat álal keresett arany") +
   ggtitle("Sebzés és aranyköltés közötti összefüggés, az összes adaton")
 ggplot(data, aes(x = goldEarned, y = totalDamageDealt)) + 
   geom_point() + 
-  facet_grid(rows = data$win) +
   xlab("Sebzés") +
   ylab("Csapat álal keresett arany") +
   ggtitle("Sebzés és aranyköltés közötti összefüggés, a már differenciált adatunkon")
-# Látszódik a két ábrán, hogy ahol a full adatot használtuk, azaz ott ahol nem a különbségét vettük az adatoknak, ott az adatok sokkal inkább szoródtak és kevsebb volt a kapcsolat. Ez szerintünk azért van mert a játék hossza torzít amit így tudunk korrigálni.
+# Látszódik a két ábrán, hogy ahol a full adatot használtuk, azaz ott ahol nem a különbségét vettük az adatoknak, ott az adatok korlátozva voltak a 0 körül és kevesebb kapcsolatot láthatunk. Ez szerintünk azért van mert a játék hossza torzít amit így tudunk korrigálni.
 
 
-# Ilyen lehet peldaul hogy mennyi aranyat koltottek, es ezzel mennyit tudtak az ellenfeleikre sebezni
+# Fontos azt is látni, hogy néhány változónk szinte csak egymás ellentétje de egyenlő, erre egy példa lehet:
+ggplot(data, aes(x = deaths, y = kills)) + 
+  geom_point() + 
+  xlab("Halálok száma") +
+  ylab("Gyilkosságok száma") +
+  ggtitle("Gyilkosságok és halálok száma egymás ellentétje")
+
+
+# Vagy ami számomra érdekes volt, hogy például a true damage (ami egy olyan sebzés fajta a játékban, amit nem lehet levédeni), nagyon hasonló mindig a csapatok között és erősen a 0 körül szórodik
+ggplot(data, aes(x = trueDamageDealt, y = trueDamageTaken)) + 
+  geom_point() + 
+  xlab("Igaz sebzés sebezve") +
+  ylab("Igaz sebzés elszenvedve") +
+  ggtitle("Igaz sebzés látványosan a 0 körül szórodik")
+
+
+# Érdekes lehet peldaul hogy mennyi aranyat koltottek, es ezzel mennyit tudtak az ellenfeleikre sebezni
 ggplot(data, aes(x = totalDamageDealt, y = goldSpent)) + 
   geom_point() +
   xlab("Sebzés")+
   ylab("Csapat álal költött arany") +
   ggtitle("Sebzés és aranyköltés közötti összefüggés")
-# Erdekes lehet, hgoy vajon a gyoztes csapat hatekonyabb-e az arany hasznalatban
+
+# Erdekes lehet, hogy vajon a gyoztes csapat hatekonyabb-e az arany hasznalatban:
+
 ggplot(full_data, aes(x = totalDamageDealt, y = goldSpent)) + 
   geom_point() + 
   facet_grid(rows = full_data$win) +
   xlab("Sebzés")+
   ylab("Csapat álal költött arany") +
   ggtitle("Sebzés és aranyköltés közötti összefüggés, győzelem alapján lebontva")
-# Ranezesre nincs oriasi kulonbseg, de a gyoztes csapat ranezesre kevesbe szorodik
+# Ranezesre nincs oriasi kulonbseg, de a gyoztes csapat ranezesre kevesbe szorodik, ezért mi úgy gondoljuk, hogy egy apró mértékben hatékonyabban fordították át az aranyukat sebzéssé.
 
 # Erdekes lehet a win rateje a piros csapatnak a mintankban, ha nem 50% kozeli akkor lehet torzitott a mintank 
+print("Piros csapat győzelmi rátája a mintánkban:")
 sum(used_ids$win) / length(used_ids$win)
-# Nagyjabol stimmel, nincsen oriasi elteres
-
+# Nagyjabol stimmel, nincsen oriasi elteres, ezért biztosabbak lehetünk abban, hogy a mintánk nem torzít egyik irányba sem
 
 corr_mat <- cor(data[,-c(2)])
 
 big_correlations <- as.data.table(as.table(corr_mat))
-big_correlations <- big_correlations[order(V1, N)]
+big_correlations <- big_correlations[order(N)]
 
 head(big_correlations, n = 20)
 head(big_correlations[V1 == "win"], n = 20)
-# Bár az új eredményünk egy jelentős része meglehetősen egyértelmű, számomra a death-goldEarned változó ennyire erős korrelációja mégis meglepő. Rengeteg módja van az aranyszerzésnek a játékban és az, hogy a halálok ennyire együtt mozognak vele engem meglepett: Talán azért lehet így és azért nem látjuk ugyanúgy a kills változót, mert miután az ember meghal amíg újra fel nem éled nem tud aranyat szerezni, azonban az ellenfélnek aranyat adott a halálával, és mivel mi a csapatok közötti különbséget vizsgáljuk ezért ez kétszeresen hat.
+# Bár az új eredményünk egy jelentős része meglehetősen egyértelmű, számomra a death-goldEarned változó ennyire erős korrelációja mégis meglepő. Rengeteg módja van az aranyszerzésnek a játékban és az, hogy a halálok ennyire együtt mozognak vele engem meglepett: Talán azért lehet így és azért nem látjuk ugyanúgy a kills változót, mert miután az ember meghal amíg újra fel nem éled nem tud aranyat szerezni, azonban az ellenfélnek aranyat adott a halálával, és mivel mi a csapatok közötti különbséget vizsgáljuk ezért ez erősebben hat.
 ```
 
-# Egyszerubb modell
+# Challange modell
 ```{r}
 data[, IDs:= NULL]
+set.seed(2020)
 samp <- sample(nrow(data), nrow(data)*0.75)
 
 # Létrehozunk egy training és egy teszt adathalmazt amit később használni tudunk
 train <- data[samp,]
 test <- data[-samp,]
 
-# Mivel az eredményünket fogadásra szeretnénk használni, ezért ami valóban fontos számunkra, hogy amire fogadunk az valóban nyerő legyen, ezért a leghasznosabb ha precision-t mérünk.
+# Mivel az eredményünket fogadásra szeretnénk használni, ezért ami valóban fontos számunkra, hogy amire fogadunk az valóban nyerő legyen, ezért a leghasznosabb ha precision-t mérünk. Ez a mi esetünkban annyit tesz, hogy azok közül a meccsek közül amikre fogadunk, hány fog valóban nyerni.
 precision <- function(table){
   return(table[2,2] / (table[2,2] + table[2,1]))
 }
@@ -244,6 +257,7 @@ highlyCorrelated <- findCorrelation(corr_mat, cutoff = 0.75)
 train <- train[, c(highlyCorrelated):= NULL]
 test <- test[, c(highlyCorrelated):= NULL]
 
+set.seed(2020)
 control <- trainControl(method = "repeatedCV", number = 10, repeats = 3)
 model <- train(as.factor(win) ~., data = train, method = "lvq", preProcess = "scale", trControl = control)
 importance <- varImp(model, scale = FALSE)
@@ -260,8 +274,16 @@ print(result_table)
 # RFE model selection
 # Ahogy azt már említettük korábban, az adatainkban rengeteg olyan oszlop is van, ami valószínűleg nem sokkal járul hozzá egy csapat győzelméhez. Erre egy jó megoldásnak tűnt az RFE, ami ezeket a gyenge változókat kezeli, ami sajnos az adatunk természetéből adódik. 
 
+train[, win:= as.character(win)][win == 1, win:= "Win"]
+train[, win:= as.character(win)][win == 0, win:= "Lose"]
+
+test[, win:= as.character(win)][win == 1, win:= "Win"]
+test[, win:= as.character(win)][win == 0, win:= "Lose"]
+
+set.seed(2020)
 control <- rfeControl(functions = rfFuncs, method = "cv", number = 10)
-results <- rfe(train[,-c(1)], as.factor(train$win), sizes=c(1:23), rfeControl = control)
+results <- rfe(train[,-c(1)], as.factor(train$win), sizes=c(1:15), rfeControl = control)
+
 
 pred_prob <- predict(results, newdata = test[,-c(1)])
 
@@ -272,7 +294,7 @@ print(result_table)
 # Itt már egy szebb számot kapunk precision-nél ami nem meglepő mivel valóban sok gyenge változónk van.
 ```
 
-# Modell epites
+# PCR Modell
 ```{r}
 # Győzelmeket egy külön vektorba tesszük.
 winvec <- as.numeric(data$win)
@@ -327,7 +349,6 @@ glm.pcr <- function(y, x, k = 1) {
 }
 
 # Training and validation data
-samp <- sample(nrow(depen), nrow(depen)*0.75)
 depen.train <- depen[samp,]
 winvec.train <- winvec[samp]
 
@@ -348,18 +369,18 @@ truepos <- c()
 falsepos <- c()
 F1_vec <- c()
 # F1 score alapjan valaszthatunk legjobb erteket
-ks <- seq(from = 0.44, to = 0.55, by = 0.01)
+ks <- seq(from = min(pred_prob), to = max(pred_prob), by = 0.02)
 for (k in ks) {
   pred_response <- rep(0, length(pred_prob))
   pred_response[pred_prob > k] <- 1
   result_table <- table(pred_response, winvec.valid)
   
-  print(precision(result_table))
   
   # Illetve érdekel minket az is, hogy az órán tanult truepositive - falsepositive ábra hogyan néz ki az esetünkben.
   truepos <- append(truepos, (result_table[2,2])/(result_table[2,2]+result_table[1,2]))
   falsepos <- append(falsepos, (result_table[2,1])/(result_table[2,2]+result_table[1,1]))
-  print(k)
+  print(paste("Kritikus érték", k))
+  print(precision(result_table))
   print((result_table[2,1])/(result_table[2,2]+result_table[1,1]))
 }
 
@@ -368,7 +389,7 @@ plot(falsepos, truepos)
 
 # Mivel a precision alapján tervezünk választani, ezért a .52-es értéknél választjuk el a győzelmet
 pred_response <- rep(0, length(pred_prob))
-pred_response[pred_prob > .52] <- 1
+pred_response[pred_prob > .53] <- 1
 table(pred_response, winvec.valid)
 
 # PCR modellünk nem hozott nagyon erős eredményt precision szempontjából, aminek oka lehet, hogy továbbra is van rengeteg olyan változó a mintánkban aminek nincsen valódi nagy magyarázó ereje, illetve annak, hogy míg PCA-t a legnagyobb szórás magyarázat alapján választunk az nem feltétlen a legprediktívebb változó.
