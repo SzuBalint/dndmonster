@@ -1,43 +1,43 @@
 ---
-title: "Vegso porjekt"
-author: "Balint Szutor es Jaszai Tamas"
-date: '2020 januar 7 '
+title: "Végső porjekt"
+author: "Jászai Tamás és Szutor Bálint"
+date: '2020.01.16. '
 output: html_document
 ---
 
-# A mi vegso projektunkben megprobaljuk megjosolni Leauge of Legends jatekok kimenetet
+# Cél: League of Legends (LoL) mérkőzések eredményének előrejelzése
 
-Hipotezis: Mivel a LOL egy digitalis jatek ezert konnyebb lehet real-time adatokat szerezni a meccsekrol, ezert egy machine learing programmal talan kepesek lehetunk elverni az odds-okat amit fogado oldalak adnak nekunk es igy penzt tudunk ezzel keresni.
+Az eredeti motívációt az volt, hogy a LoL egy digitális játék/(e-)sport, így a mérkőzésekről könnyebb real-time adatokat szerezni, mint nem digitális játékokról/sportokról (pl. futball, kosárlabda, stb.). Ez business szempontból azért érdekes, mert így egy jó előrejelző modell 1) segíthet real-time fogadások megkötésében, és igazán jól működő modellek esetében elméleti szinten pozitív várható értékű fogadásokat is köthetünk, illetve 2) segíthet a real-time fogadások árazásának kialakításába a fogadóirodák számára.
 
+Sajnos nem tudtuk végül megoldani, hogy az adataink ne a mérkőzések végső statisztikáit tükrözzék (azaz, nem voltak pl. a meccs felénél összegyűjtött adataink, így nem tudtuk azt letesztelni, hogy a meccsek felének adatai alapján milyen pontossággal lehet előrejelezni a végeredményt). Emiatt csak a végső statisztikákból próbáltuk előrejelezni a meccsek kimenetelét, ami nem ad igazi választ a kérdésfeltevésünkre. Emiatt érdemesnek tartjuk a kérdésre való visszatérést a későbbiekben, megfelelő adathalmaz beszerzését követően.
 
-# A projektunk letrejotte a kovetkezo utat kovette
+Módszertan:
 
-##   Tema valasztas
+Többféle modellt használtunk. Az első részben megpróbáltuk a megfelelő változók kiválasztásával felépíteni a modellt (GLM, LVQ, RFE), később pedig kipróbáltunk egy számunkra új, PCR alapú modellt is, melyet az alábbi cikkben találtunk: https://www.sciencedirect.com/science/article/pii/S0167947318300562, itt a változóknak egy kombinációja lett volna használva.
 
-##   Adat kereses -- 
-Erre lejjebb beillesztettuk a hasznalt Python scriptet
+Az volt az előzetes elképzelésünk, hogy a PCR alapú modell jobban fog teljesíteni. Ennek oka, hogy nagy korreláció az egyes változók értéke között, ezért a muiltikollinearitás problémáját jobban kezelő PCR alapú modellt előzetesen jobbnak vártuk.
 
-##   Adat felfedezes -- 
-Probaltunk abrakon keresztul osszefuggeseket keresni, illetve egyszeru statisztikakkal, azonban ezeknek nagyresze nem volt nagyon hasznos ezert nem is kerultek be ide, azonban nehanyat bent hagytunk
+Ezekről részletesebben alább beszámolunk.
 
-##   Model kereses -- 
-Ez talan tobb idot vett el a kelletenel, szerettuk volna clusterezest es predikcios modszereket keverni ezert kerestunk PCR (Principal component regression) modelleket, azonban onnan tovabb kerestunk es talaltunk egy binomialis modellekre is illesztheto modszert, ezt a kovetkezo linken talaltuk
-###   https://www.sciencedirect.com/science/article/pii/S0167947318300562
+# A projekt megvalósításának egyes lépései:
 
-##   Adat tisztitas -- 
-Bar eleg terjedelmes adatot talaltunk vegul, meg akkor ha sok az ismetlodo informacio es hasonlok, az adat nem volt teljesen tiszta. Nehany dolgot meg excelben tisztitottunk, azonban a nagy resze mar R-ben tortent es a kodot is beillesztettuk (Excelben kitoroltunk folosleges sorokat, foleg olyan sorokat ahol átfedés volt a játékok között (pl.: lescrapeltem egy barátom és a saját meccseimet, votlak köztük olyan meccsek, amik többször is előkerültek.))
+Adat keresés
+Felderítő adatelemzés
+Adat tisztítás
+Modellek illesztése, validációja
 
-##   Modell illesztes -- 
-Kiprobaltunk tobb modellt is, ebbol azonban termeszetesen a PCR modellt szerettuk voln a leginkabb hasznalni, a sikerunkrol kesobb lesz szo
-
+Ezekről egyesével részletesebb beszámoló alább található:
 
 # Adat kereses
 
-Mivel mashogy nem tudtam adatot talalni erre, ezert a Riot Games API-at hasznalva kertem le az adatokat. Ez sajnos mivel elegge korlatozva volt a mennyiseg amit kerhettem azzal jart, hogy ket esten at futtatva is csak par ezer jatekrol sikerult adatot szereznem.
-De maga az adat cserebe kiterjed rengeteg dologra, amivel probalkozni tudok.
+Mint korábban említettük, sajnos nem tudtuk a mérkőzések "köztes eredményeit" leíró adatokat találni.
+A felhasznált adatok forrása a Riot Games API, innen kértük le az adatokat egy Python kóddal, amit alább beillesztettünk.
+Azért a Riot Games API-ja elég korlátozott mennyiségű adat lekérését tette lehetővé, de más forrást sajnos nem találtunk. Emiatt csak néhány ezer mérkőzésről sikerült adatokat szereznünk.
+Pozitívum viszont, hogy sok változó (80+) szerepelt az adatbázisban.
+
 ```{r}
 
-# Nem tudtuk kiexportalni HTML-be amig nem raktuk at R kod blokka, elnezest a gepemen sajnos eleg sok furcsa R Studio hiba szembejon.
+# Nem tudtuk kiexportálni HTML-be, amíg nem raktuk at R kód blokka, elnézést a gépemen sajnos elég sok furcsa R Studio hiba szembejön.
 
 # import cassiopeia as cass
 # import pandas as pd
@@ -108,25 +108,40 @@ suppressPackageStartupMessages(library(magrittr))
 suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(tidyverse))
 
-set.seed(2020)
+set.seed(1997)
 ```
 
 
 # Adat tisztitas
+
+Az adatokban találtunk:
+- sok ismétlődő információt,
+- hiányos adatsorokat,
+- nem numerikus változókat,
+- ID-ket,
+- valójában semmitmondó változókat: vagy már "kivették" a játékból és semmi szerepe nincsen, vagy gyakorlatilag sosem volt benne/volt szerepe.
+
+Ezek kezelésére tisztítottuk az adathalmazt.
+
+Továbbá az adathalmaz minden meccsre játékos szinten mutatja a statsiztikákat: egy meccset két 5 fős csapat játszik, és az adathalmazban egy-egy sor egy játékosnak felel meg (de meghatározható, hogy mely meccset melyik 10 játékos játszotta, és hogyan oszlottak meg a csapatok között: ugyanis egymást követő adatsorok alkotnak egy-egy meccset). Számunkra ugyanakkor hasznosabbak voltak a modellépítés szempontjából a csapatszintű adatok, ezért meccsenként a két csapatra aggregáltuk a csapatot alkotó játékosok egyéni adatait.
+
+Az így kapott adattal az a probléma, hogy a LoL meccsek hossza nem jól definiált (meccsenként nagyon változó lehet), ugyanakkor erősen korrelál a megfigyelt változóinkkal (példa: meccs alatt okozott összes sebzés erősen korrelál a meccs hosszával). Emiatt egy változó valamilyen (pl. kis) értéke nem feltétlen jelentené azt, hogy a csapat rosszul teljesített, lehet, hogy csak a mérkőzés hosszát tükrözné. Mi ezt a problémát úgy kezeltük, hogy a meccsenként kiszámított, két csapatra külön-külön aggregált értékek különbségét vettük, és ezt használtuk a későbbi modellekben. Ennek az eljárásnak előnye, hogy amennyiben a csapatok tagjait azonos metódussal választja ki a játék (így teszi), akkor a különbségek várható értéke 0 lesz a meccs hosszától függetlenül. Természetesen a különbségek szórása erősen összefügg továbbra is a meccs hosszával, ezt a problémát nem sikerült jól kezelnünk.
+
+Az alábbiakban rövidebb kommentekkel olvasható a kódunk:
 ```{r}
 data <- fread("data/LeaugeDataMege_clean.csv", dec = ",")
 full_data <- data
 
-# Lehetseges hogy talaltunk meg olyan meccseket ahol hianyzik adatunk, ezeket eldobjuk
+# Eldobtuk az olyan meccseket, ahol hiányzott valamilyen adat:
 a <- data[, .N, IDs]
 correct_ids <- a$IDs[a$N == 10]
 data <- data[data[, IDs %in% correct_ids]]
 
-# Minket a ket csapat kozotti kulonbseg erdekel, azzal tudunk igaz?n jol becsulni
+# Csapatonként csoportosítás:
 data_blue <- data[Sides == "Side.blue"]
 data_red <- data[Sides == "Side.red"]
 
-# Most elvalasztom a nem numerikus oszlopokat, azokkal nem fogunk tudni jol dolgozni, illetve kidoblaom az olyan oszlopokat amikben nincsen semmi adat, sot olyanok is vannak az adataink kozott mint a SightWards, amit kivettek a jatekbol mar kozel 4-5 eve, illetve unrealKills, ami soha benne sem volt
+# Nem numerikus oszlopok elválsztása + használhatatlan adatok kidobálása:
 non_numeric_columns <- c("SummonerName", "Champion", "Sides", "Redw", "item0", "item1", "item2", "item3", "item4", "item5", "item6", "playerScore1", "playerScore2", "playerScore3", "playerScore4", "playerScore5", "playerScore6", "playerScore7", "playerScore8", "playerScore9", "combatPlayerScore", "totalPlayerScore", "firstBloodAssist", "objectivePlayerScore", "totalScoreRank", "playerScore0", "sightWardsBoughtInGame", "unrealKills", "participantId", "perkSubStyle", "perkPrimaryStyle", "champLevel", "firstInhibitorAssist", "firstInhibitorKill", "firstBloodKill", "firstTowerAssist", "firstTowerKill", "quadraKills", "pentaKills")
 
 data_blue[, c(non_numeric_columns):=NULL]
@@ -135,7 +150,7 @@ data_red[, c(non_numeric_columns):=NULL]
 data_blue_sum <- aggregate(. ~IDs, data_blue, FUN = "sum") %>% data.table()
 data_red_sum <- aggregate(. ~IDs, data_red, FUN = "sum") %>% data.table()
 
-# Gyozelem vektor
+# Győzelem vektor
 wins <- data[Sides == "Side.red", .(winner = sum(win)), by = list(IDs, Sides)]
 used_ids <- data.table(cbind(wins$winner/5, data_red_sum$IDs))
 names(used_ids) <- c("win", "IDs")
@@ -143,7 +158,7 @@ names(used_ids) <- c("win", "IDs")
 data_red_sum[,c("IDs", "win"):=NULL]
 data_blue_sum[,c("IDs", "win"):=NULL]
 
-# Ket csapat kozotti kulonbseggel fogunk prediktalni, hiszen a nominalis ertek nem feltetlen mond sokat. Az erosen fugghet a jatekidotol, amire nem korrigalunk.
+# Csapatok közti különbségek kiszámítása:
 
 diff <- data.table(as.matrix(data_red_sum) - as.matrix(data_blue_sum))
 
@@ -151,9 +166,9 @@ data <- cbind(used_ids, diff)
 ```
 
 # Adat felfedezes
-```{r}
-# Olyan abrakat keresunk ahol osszefugges lehet a ket valtozo kozott, de nem reszhalmazai egymasnak
 
+Ábrákon próbáltunk összefüggéeseket keresni. Fontos volt, hogy olyan változókat szerepeltessünk, amelyek nem részhalmaza egymásnak (ekkor nyilván van bizonyos összzefüggés). Néhányat ezekből szemléltet az alábbi kód:
+```{r}
 ggplot(full_data, aes(x = goldEarned, y = totalDamageDealt)) + 
   geom_point() +
   xlab("Sebzés") +
@@ -164,7 +179,7 @@ ggplot(data, aes(x = goldEarned, y = totalDamageDealt)) +
   xlab("Sebzés") +
   ylab("Csapat álal keresett arany") +
   ggtitle("Sebzés és aranyköltés közötti összefüggés, a már differenciált adatunkon")
-# Látszódik a két ábrán, hogy ahol a full adatot használtuk, azaz ott ahol nem a különbségét vettük az adatoknak, ott az adatok korlátozva voltak a 0 körül és kevesebb kapcsolatot láthatunk. Ez szerintünk azért van mert a játék hossza torzít amit így tudunk korrigálni.
+# Látszódik a két ábrán, hogy ahol a full adatot használtuk, azaz ott, ahol nem a különbségét vettük az adatoknak, ott az adatok sokkal inkább szoródtak és kisebb volt a kapcsolat. Ez szerintünk azért van, mert a játék hossza torzít.
 
 
 # Fontos azt is látni, hogy néhány változónk szinte csak egymás ellentétje de egyenlő, erre egy példa lehet:
@@ -183,14 +198,14 @@ ggplot(data, aes(x = trueDamageDealt, y = trueDamageTaken)) +
   ggtitle("Igaz sebzés látványosan a 0 körül szórodik")
 
 
-# Érdekes lehet peldaul hogy mennyi aranyat koltottek, es ezzel mennyit tudtak az ellenfeleikre sebezni
+# Mennyi aranyat költöttek, és ezzel mennyi sebzést tudtak okozni
 ggplot(data, aes(x = totalDamageDealt, y = goldSpent)) + 
   geom_point() +
   xlab("Sebzés")+
   ylab("Csapat álal költött arany") +
   ggtitle("Sebzés és aranyköltés közötti összefüggés")
 
-# Erdekes lehet, hogy vajon a gyoztes csapat hatekonyabb-e az arany hasznalatban:
+# Érdekes lehet, hogy vajon a győztes csapat hatékonyabb-e az arany használatban:
 
 ggplot(full_data, aes(x = totalDamageDealt, y = goldSpent)) + 
   geom_point() + 
@@ -198,12 +213,12 @@ ggplot(full_data, aes(x = totalDamageDealt, y = goldSpent)) +
   xlab("Sebzés")+
   ylab("Csapat álal költött arany") +
   ggtitle("Sebzés és aranyköltés közötti összefüggés, győzelem alapján lebontva")
-# Ranezesre nincs oriasi kulonbseg, de a gyoztes csapat ranezesre kevesbe szorodik, ezért mi úgy gondoljuk, hogy egy apró mértékben hatékonyabban fordították át az aranyukat sebzéssé.
+# Nem látszik jelentősnek a különbség, de a győztes csapat többet szóródik, ezért mi úgy gondoljuk, hogy egy apró mértékben hatékonyabban fordították át az aranyukat sebzéssé.
 
-# Erdekes lehet a win rateje a piros csapatnak a mintankban, ha nem 50% kozeli akkor lehet torzitott a mintank 
+# Érdekes lehet a win rate-je a piros csapatnak a mintánkban, ha nem 50% közeli, akkor lehet torzított a mintánk 
 print("Piros csapat győzelmi rátája a mintánkban:")
 sum(used_ids$win) / length(used_ids$win)
-# Nagyjabol stimmel, nincsen oriasi elteres, ezért biztosabbak lehetünk abban, hogy a mintánk nem torzít egyik irányba sem
+# Nagyjabol stimmel, nincsen óriási eltérés
 
 corr_mat <- cor(data[,-c(2)])
 
@@ -212,18 +227,24 @@ big_correlations <- big_correlations[order(N)]
 
 head(big_correlations, n = 20)
 head(big_correlations[V1 == "win"], n = 20)
-# Bár az új eredményünk egy jelentős része meglehetősen egyértelmű, számomra a death-goldEarned változó ennyire erős korrelációja mégis meglepő. Rengeteg módja van az aranyszerzésnek a játékban és az, hogy a halálok ennyire együtt mozognak vele engem meglepett: Talán azért lehet így és azért nem látjuk ugyanúgy a kills változót, mert miután az ember meghal amíg újra fel nem éled nem tud aranyat szerezni, azonban az ellenfélnek aranyat adott a halálával, és mivel mi a csapatok közötti különbséget vizsgáljuk ezért ez erősebben hat.
+# Bár az új eredményünk egy jelentős része meglehetősen egyértelmű, számunkra a death-goldEarned változó ennyire erős korrelációja mégis meglepő. Rengeteg módja van az aranyszerzésnek a játékban és az, hogy a halálok ennyire együtt mozognak vele minket meglepett: talán azért lehet így és azért nem látjuk ugyanúgy a kills változót, mert miután az ember meghal, amíg újra fel nem éled nem tud aranyat szerezni, azonban az ellenfélnek aranyat adott a halálával, és mivel mi a csapatok közötti különbséget vizsgáljuk ezért ez erősebben hat.
 ```
 
 # Challange modell
 ```{r}
+# Már nem lesz szükségünk a meccsek ID-aira
 data[, IDs:= NULL]
+
+# Az adatok 85%-át használjuk trainingre
 set.seed(2020)
-samp <- sample(nrow(data), nrow(data)*0.75)
+samp <- sample(nrow(data), nrow(data)*0.85)
 
 # Létrehozunk egy training és egy teszt adathalmazt amit később használni tudunk
 train <- data[samp,]
 test <- data[-samp,]
+
+# Test adathalmazban érdekes lehet tudni mennyi a win-rate ezt a számot ugyanis elérhetjük úgyis, ha csak mindenre azt mondjuk, hogy nyer
+print(sum(test$win)/length(test$win))
 
 # Mivel az eredményünket fogadásra szeretnénk használni, ezért ami valóban fontos számunkra, hogy amire fogadunk az valóban nyerő legyen, ezért a leghasznosabb ha precision-t mérünk. Ez a mi esetünkban annyit tesz, hogy azok közül a meccsek közül amikre fogadunk, hány fog valóban nyerni.
 precision <- function(table){
@@ -291,7 +312,7 @@ result_table <- table(pred_prob$pred, test$win)
 print(precision(result_table))
 print(result_table)
 
-# Itt már egy szebb számot kapunk precision-nél ami nem meglepő mivel valóban sok gyenge változónk van.
+# A precision számunk elég pocsék, ezért nem valószínű, hogy ezt a modellt lesz érdemes majd használni. Ennek oka lehet, hogy az RFE kidobálna nem fontos változókat, azonban nincs semelyik változó sem feltétlen elengedhetetlen magában, ebből arra következtetünk, hogy kevesebb a fontos változó mint az eredetileg gondoltuk.
 ```
 
 # PCR Modell
@@ -305,7 +326,7 @@ depen_names <- names(depen)
 
 depen <- as.matrix(depen, rownames = FALSE)
 
-# KONYOK
+# KÖNYÖK
 ks <- 1:10
 tot_within_ss <- sapply(ks, function(k) {
   km_output <- kmeans(depen, k, nstart = 20)
@@ -329,7 +350,7 @@ plot(
 ################################
 
 glm.pcr <- function(y, x, k = 1) {
-  ## y is either a binary variable 0, 1
+  ## y is a binary variable 0, 1
   ## x contains the independent variables
   ## k shows the number of components to keep
   p <- dim(x)[2]
@@ -348,7 +369,7 @@ glm.pcr <- function(y, x, k = 1) {
   list(model = mod, per = per[k], test = t, pca = eig)
 }
 
-# Training and validation data
+# Training and validation data, ugyanazzal a sample számmal mint az előzökben
 depen.train <- depen[samp,]
 winvec.train <- winvec[samp]
 
@@ -367,8 +388,7 @@ pred_prob <- predict(glm_model, newdata = test, type = "response")
 
 truepos <- c()
 falsepos <- c()
-F1_vec <- c()
-# F1 score alapjan valaszthatunk legjobb erteket
+
 ks <- seq(from = min(pred_prob), to = max(pred_prob), by = 0.02)
 for (k in ks) {
   pred_response <- rep(0, length(pred_prob))
@@ -379,6 +399,8 @@ for (k in ks) {
   # Illetve érdekel minket az is, hogy az órán tanult truepositive - falsepositive ábra hogyan néz ki az esetünkben.
   truepos <- append(truepos, (result_table[2,2])/(result_table[2,2]+result_table[1,2]))
   falsepos <- append(falsepos, (result_table[2,1])/(result_table[2,2]+result_table[1,1]))
+  
+  # Eredmények:
   print(paste("Kritikus érték", k))
   print(precision(result_table))
   print((result_table[2,1])/(result_table[2,2]+result_table[1,1]))
@@ -387,20 +409,24 @@ for (k in ks) {
 plot(falsepos, truepos)
 # A szinte egyenes vonalbol arra kovetkeztetek, hogy annyira pontosan tudunk igy elorejelezni mintha szinte random mintank lenne
 
-# Mivel a precision alapján tervezünk választani, ezért a .52-es értéknél választjuk el a győzelmet
+# Mivel a precision alapján tervezünk választani, ezért a .5-es értéknél választjuk el a győzelmet
 pred_response <- rep(0, length(pred_prob))
-pred_response[pred_prob > .53] <- 1
+pred_response[pred_prob > .5] <- 1
 table(pred_response, winvec.valid)
-
-# PCR modellünk nem hozott nagyon erős eredményt precision szempontjából, aminek oka lehet, hogy továbbra is van rengeteg olyan változó a mintánkban aminek nincsen valódi nagy magyarázó ereje, illetve annak, hogy míg PCA-t a legnagyobb szórás magyarázat alapján választunk az nem feltétlen a legprediktívebb változó.
 ```
 
-# Tanulsag
+# Tanulság
 
-## Sajnos nem lett attoro eredmenyunk, de sok tanulsaggal jart
+## Igazunk lett a PCR modellel, precision szempontjából ez teljesített a legjobban, és az esetek ~57%-ban jó döntést hozhatunk a fogadásunkkal.
 
-Szamunkra meglepo, hogy nem mukodott a PCR. Azert hasznaltuk eredetileg, mert annak ellenere hogy sokfele adatunk volt abbol sok igazabol egymasnak szinte reszhalmaza volt (total damage dealt es mondjuk magic damage dealt), ezert vekony jegen tancoltunk kolleraciok miatt.
+Válószínüleg azért nem teljesítettek olyan jól a feature selection modellek, mert a változók önmagukban nem voltak olyan erősek egyenként, azonban egy keverékük már az tudott lenni.
 
-Valoszinuleg erdemesebb lett volna az adatokat jobban megkopasztani es annak jobban utana jarni, hogy mi hogyan hat mire. Mindenesetre az elso glm modellunk meglepoen jol teljesitett, jobban is mint a bonyolult PCR. Remeltuk, hogy esetleg valami szebb kepet kapunk es meg legvadabb almainkban azt is, hogy valami olyasmi eredmenyre juthatunk, mint peldaul ebben a videoban: https://www.youtube.com/watch?v=4VAkrUNLKSo
+Összességében precision számok:
 
-Mindenesetre elveztuk, es volt legalabb lehetosegunk nem csak R-ben, de Pythonban is gyakorolni egy kicsit. Ha nem is fogunk most meggazdagoni a Lol jatek fogadasokbol egyenlore.
+GLM: 0.5294118
+
+LVQ: 0.5398773
+
+RFE: 0.5284553
+
+PCR: 0.5673077
